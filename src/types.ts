@@ -143,14 +143,34 @@ export interface HistoricalTokenReport {
   dexId?: string;
   liquidityUsd?: number;
   pairCreatedAt?: number;
-  matchStatus: 'MATCHED_ROBINHOOD' | 'NO_ROBINHOOD_PAIR' | 'AMBIGUOUS_MATCH' | 'NO_CONTRACT_DATA';
+  pairCreatedDate?: string;
+  matchStatus: 'MATCHED_ROBINHOOD' | 'NO_ROBINHOOD_PAIR' | 'AMBIGUOUS_MATCH' | 'NO_CONTRACT_DATA' | 'HISTORICAL_MISMATCH';
+  historicalValidAtT0?: boolean;
   preListingRpcScanned: boolean;
   preListingBlocksRange?: string;
+  requestedWindowHours?: number;
+  actualCoveredWindowHours?: number;
+  rpcWindowStatus?: 'RPC_WINDOW_COMPLETE' | 'RPC_WINDOW_INCOMPLETE';
   realSwapsFound: number;
   realBuysFound: number;
   realSellsFound: number;
   realUnknownsFound: number;
   uniqueWalletsFound: number;
+}
+
+export type WalletCandidateTier =
+  | 'insufficient_sample'
+  | 'candidate_smart_wallet'
+  | 'strong_candidate'
+  | 'high_confidence_candidate';
+
+export interface WalletSampleDetail {
+  token: string;
+  type: 'pre-listing BUY';
+  timestamp: number;
+  date: string;
+  txHash?: string;
+  blockNumber?: number;
 }
 
 export interface CandidateWalletScore {
@@ -162,20 +182,39 @@ export interface CandidateWalletScore {
   firstSeen: number;
   lastSeen: number;
   tokens?: string[];
-  status: 'candidate_smart_wallet' | 'insufficient_sample';
-  sampleStatus: 'candidate_smart_wallet' | 'insufficient_sample';
+  sampleDetails?: WalletSampleDetail[];
+  status: WalletCandidateTier;
+  sampleStatus?: WalletCandidateTier;
 }
 
 export interface HistoricalAnalysisSummary {
   historicalMexcListings: number;
   robinhoodTokenMatches: number;
+  historicallyValidRobinhoodMatches: number;
+  historicalMismatches: number;
   robinhoodMatchRate: number;
   tokensScanned: number;
+  completeRpcWindows: number;
+  incompleteRpcWindows: number;
   preListingWindow: '24h';
   realSwapTransactions: number;
   realBuys: number;
+  realSells: number;
+  realUnknowns: number;
   uniqueWallets: number;
+  walletsWith2PlusMexcSamples: number;
   walletsWith3PlusMexcSamples: number;
+  walletsWith5PlusMexcSamples: number;
+  candidateSmartWallets: number;
+  strongCandidates: number;
+  highConfidenceCandidates: number;
+  duplicateTransactionsRemoved: number;
+  ambiguousSwapsExcluded: number;
+  postListingBuysExcluded: number;
+  contractAddressesExcluded: number;
+  invalidNonEoaExcluded: number;
+  buyFalsePositivesRemoved: number;
+  historicalMismatchesRemoved: number;
   topCandidateWallets: CandidateWalletScore[];
   fakeDataCreated: 'NO';
   transactionsSent: 'NO';
@@ -183,9 +222,10 @@ export interface HistoricalAnalysisSummary {
   gmgn: 'NOT USED';
   coingecko: 'NOT USED';
   geckoterminal: 'NOT USED';
-  analysisStatus: 'PASS' | 'INSUFFICIENT_HISTORICAL_DATA';
+  analysisStatus: 'PASS' | 'INSUFFICIENT_HISTORICAL_DATA' | 'FAIL';
   tokenReports: HistoricalTokenReport[];
   mexcCoverage?: string;
   dexScreenerCoverage?: string;
   rpcScanStatus?: string;
+  windowAuditNote?: string;
 }

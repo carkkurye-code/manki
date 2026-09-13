@@ -8,7 +8,7 @@ import { dexCollector } from './server/dexCollector.js';
 import { walletAnalytics } from './server/walletAnalytics.js';
 import { liveMonitor } from './server/liveMonitor.js';
 import { telegramAlerts } from './server/telegramAlerts.js';
-import { runSystemTests, runHistoricalMexcTests } from './server/testRunner.js';
+import { runSystemTests, runHistoricalMexcTests, runDataQualityAuditTests, runAllVerificationSuites } from './server/testRunner.js';
 import { logger } from './server/logger.js';
 import { robinhoodRpc } from './server/robinhoodRpc.js';
 import { historicalMexcAnalyzer } from './server/historicalMexcAnalyzer.js';
@@ -381,6 +381,26 @@ async function startServer() {
   app.post('/api/historical/test', async (req, res) => {
     try {
       const results = await runHistoricalMexcTests();
+      res.json(results);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Run Data Quality Audit tests (12 tests)
+  app.post('/api/audit/test', async (req, res) => {
+    try {
+      const results = await runDataQualityAuditTests();
+      res.json(results);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Run All Verification Suites (36 tests total)
+  app.post('/api/tests/all', async (req, res) => {
+    try {
+      const results = await runAllVerificationSuites();
       res.json(results);
     } catch (err: any) {
       res.status(500).json({ error: err.message });

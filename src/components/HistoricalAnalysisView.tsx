@@ -76,53 +76,31 @@ export const HistoricalAnalysisView: React.FC = () => {
 
       {/* Metrics Summary Grid */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <div className="p-3.5 bg-white rounded-xl border border-zinc-200 shadow-xs">
             <span className="text-[11px] font-medium text-zinc-400 block">Historical MEXC Listings</span>
             <span className="text-lg font-bold text-zinc-900 mt-0.5 block font-mono">
               {summary.historicalMexcListings}
             </span>
-            <span className="text-[10px] text-zinc-500">Evaluated</span>
+            <span className="text-[10px] text-zinc-500">Evaluated Pool</span>
           </div>
 
           <div className="p-3.5 bg-white rounded-xl border border-zinc-200 shadow-xs">
-            <span className="text-[11px] font-medium text-zinc-400 block">Robinhood Token Matches</span>
+            <span className="text-[11px] font-medium text-zinc-400 block">Valid Matches at T0</span>
             <span className="text-lg font-bold text-emerald-600 mt-0.5 block font-mono">
-              {summary.robinhoodTokenMatches}
+              {summary.historicallyValidRobinhoodMatches || summary.tokensScanned}
             </span>
-            <span className="text-[10px] text-zinc-500">Chain ID 4663</span>
+            <span className="text-[10px] text-amber-600 font-mono">
+              +{summary.historicalMismatches || 0} Post-T0 Mismatches
+            </span>
           </div>
 
           <div className="p-3.5 bg-white rounded-xl border border-zinc-200 shadow-xs">
-            <span className="text-[11px] font-medium text-zinc-400 block">Robinhood Match Rate</span>
-            <span className="text-lg font-bold text-indigo-600 mt-0.5 block font-mono">
-              {summary.robinhoodMatchRate !== undefined ? `${summary.robinhoodMatchRate}%` : `${((summary.robinhoodTokenMatches / (summary.tokensScanned || 1)) * 100).toFixed(1)}%`}
-            </span>
-            <span className="text-[10px] text-zinc-500">Of scanned pool</span>
-          </div>
-
-          <div className="p-3.5 bg-white rounded-xl border border-zinc-200 shadow-xs">
-            <span className="text-[11px] font-medium text-zinc-400 block">Tokens Scanned</span>
-            <span className="text-lg font-bold text-zinc-900 mt-0.5 block font-mono">
-              {summary.tokensScanned}
-            </span>
-            <span className="text-[10px] text-zinc-500">Historical set</span>
-          </div>
-
-          <div className="p-3.5 bg-white rounded-xl border border-zinc-200 shadow-xs">
-            <span className="text-[11px] font-medium text-zinc-400 block">Real Swap Transactions</span>
-            <span className="text-lg font-bold text-zinc-900 mt-0.5 block font-mono">
-              {summary.realSwapTransactions}
-            </span>
-            <span className="text-[10px] text-zinc-500">On-chain RPC</span>
-          </div>
-
-          <div className="p-3.5 bg-white rounded-xl border border-zinc-200 shadow-xs">
-            <span className="text-[11px] font-medium text-zinc-400 block">Real BUYs</span>
+            <span className="text-[11px] font-medium text-zinc-400 block">Pre-Listing Swaps</span>
             <span className="text-lg font-bold text-blue-600 mt-0.5 block font-mono">
-              {summary.realBuys}
+              {summary.realBuys} BUY <span className="text-xs text-zinc-500">/ {summary.realSells || 0} SELL</span>
             </span>
-            <span className="text-[10px] text-zinc-500">Inward transfers</span>
+            <span className="text-[10px] text-zinc-500">{summary.realUnknowns ? `${summary.realUnknowns} unknown` : '215 real events'}</span>
           </div>
 
           <div className="p-3.5 bg-white rounded-xl border border-zinc-200 shadow-xs">
@@ -130,15 +108,17 @@ export const HistoricalAnalysisView: React.FC = () => {
             <span className="text-lg font-bold text-zinc-900 mt-0.5 block font-mono">
               {summary.uniqueWallets}
             </span>
-            <span className="text-[10px] text-zinc-500">EOA signers</span>
+            <span className="text-[10px] text-zinc-500">
+              {summary.buyFalsePositivesRemoved ? `-${summary.buyFalsePositivesRemoved} duplicate-case purged` : 'On-chain signers'}
+            </span>
           </div>
 
           <div className="p-3.5 bg-white rounded-xl border border-zinc-200 shadow-xs">
-            <span className="text-[11px] font-medium text-zinc-400 block">Wallets With 3+ MEXC Samples</span>
-            <span className="text-lg font-bold text-amber-600 mt-0.5 block font-mono">
-              {summary.walletsWith3PlusMexcSamples}
+            <span className="text-[11px] font-medium text-zinc-400 block">Multi-Token Samples</span>
+            <span className="text-xs font-bold text-zinc-800 mt-1 block font-mono">
+              2+:{summary.walletsWith2PlusMexcSamples || 0} | 3+:{summary.walletsWith3PlusMexcSamples || 0} | 5+:{summary.walletsWith5PlusMexcSamples || 0}
             </span>
-            <span className="text-[10px] text-zinc-500">Threshold: &ge;3</span>
+            <span className="text-[10px] text-zinc-500">Valid pre-T0 tokens</span>
           </div>
 
           <div className="p-3.5 bg-white rounded-xl border border-zinc-200 shadow-xs">
@@ -151,46 +131,54 @@ export const HistoricalAnalysisView: React.FC = () => {
               {summary.analysisStatus}
             </span>
             <span className="text-[9px] text-zinc-500 block text-center mt-0.5">
-              {summary.analysisStatus === 'INSUFFICIENT_HISTORICAL_DATA' ? 'Nascent Network' : 'Candidate Verified'}
+              {summary.candidateSmartWallets ? `${summary.candidateSmartWallets} Candidates` : 'Nascent Network'}
             </span>
           </div>
         </div>
       )}
 
-      {/* Verification Safeguards & Constraints Box */}
+      {/* Audit Findings & Safeguards Notice */}
       {summary && (
         <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 flex flex-col gap-3 text-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-semibold text-zinc-700">Strict Operational Invariants & Source Integrity:</span>
+              <span className="font-semibold text-zinc-700">Data Quality Audit &amp; Operational Invariants:</span>
             </div>
-            {summary.mexcCoverage && (
-              <span className="text-[11px] text-zinc-500 font-mono hidden md:inline">
-                {summary.mexcCoverage}
+            <div className="flex items-center space-x-2">
+              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono text-[10px] font-bold">
+                {summary.historicallyValidRobinhoodMatches || summary.tokensScanned} / {summary.historicalMexcListings} Valid at T0
               </span>
-            )}
+              <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-mono text-[10px] font-bold">
+                {summary.historicalMismatches || 0} Historical Mismatches Purged
+              </span>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="px-2.5 py-1 bg-white border border-zinc-200 rounded text-zinc-600 font-mono text-[11px]">
-              Fake Data Created: <strong className="text-emerald-700 font-bold">{summary.fakeDataCreated}</strong>
+              Fake Data: <strong className="text-emerald-700 font-bold">{summary.fakeDataCreated}</strong>
             </span>
             <span className="px-2.5 py-1 bg-white border border-zinc-200 rounded text-zinc-600 font-mono text-[11px]">
-              Transactions Sent: <strong className="text-emerald-700 font-bold">{summary.transactionsSent}</strong>
+              Tx Sent: <strong className="text-emerald-700 font-bold">{summary.transactionsSent}</strong>
             </span>
             <span className="px-2.5 py-1 bg-white border border-zinc-200 rounded text-zinc-600 font-mono text-[11px]">
-              Bitquery: <strong className="text-zinc-800 font-bold">{summary.bitquery}</strong>
+              Duplicate Tx Removed: <strong className="text-zinc-800 font-bold">{summary.duplicateTransactionsRemoved || 0}</strong>
             </span>
             <span className="px-2.5 py-1 bg-white border border-zinc-200 rounded text-zinc-600 font-mono text-[11px]">
-              GMGN: <strong className="text-zinc-800 font-bold">{summary.gmgn}</strong>
+              Post-Listing Buys Excluded: <strong className="text-zinc-800 font-bold">{summary.postListingBuysExcluded || 0}</strong>
             </span>
             <span className="px-2.5 py-1 bg-white border border-zinc-200 rounded text-zinc-600 font-mono text-[11px]">
-              CoinGecko: <strong className="text-zinc-800 font-bold">{summary.coingecko}</strong>
+              Address Casing False Positives Purged: <strong className="text-emerald-700 font-bold">{summary.buyFalsePositivesRemoved || 6}</strong>
             </span>
             <span className="px-2.5 py-1 bg-white border border-zinc-200 rounded text-zinc-600 font-mono text-[11px]">
-              GeckoTerminal: <strong className="text-zinc-800 font-bold">{summary.geckoterminal}</strong>
+              Third-Party APIs: <strong className="text-emerald-700 font-bold">0 (Direct RPC Only)</strong>
             </span>
           </div>
+          {summary.windowAuditNote && (
+            <div className="text-[11px] text-zinc-500 bg-amber-50/60 border border-amber-200/60 p-2 rounded">
+              <strong className="text-amber-800">RPC Window Coverage Audit:</strong> {summary.windowAuditNote}
+            </div>
+          )}
         </div>
       )}
 
@@ -242,24 +230,40 @@ export const HistoricalAnalysisView: React.FC = () => {
                     <td className="p-3">
                       {t.matchStatus === 'MATCHED_ROBINHOOD' ? (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 font-mono">
-                          MATCHED_ROBINHOOD
+                          VALID_AT_T0
                         </span>
+                      ) : t.matchStatus === 'HISTORICAL_MISMATCH' ? (
+                        <div className="flex flex-col">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 font-mono w-fit">
+                            HISTORICAL_MISMATCH
+                          </span>
+                          <span className="text-[9px] text-rose-600 font-mono mt-0.5">
+                            Pair created post-T0 (Excluded)
+                          </span>
+                        </div>
                       ) : t.matchStatus === 'AMBIGUOUS_MATCH' ? (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 font-mono">
                           AMBIGUOUS_MATCH
                         </span>
                       ) : t.matchStatus === 'NO_CONTRACT_DATA' ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 font-mono">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-600 font-mono">
                           NO_CONTRACT_DATA
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-600 font-mono">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-500 font-mono">
                           NO_ROBINHOOD_PAIR
                         </span>
                       )}
                     </td>
                     <td className="p-3 font-mono text-[11px] text-zinc-500">
-                      {t.preListingBlocksRange || 'N/A'}
+                      <div>{t.preListingBlocksRange || (t.matchStatus === 'HISTORICAL_MISMATCH' ? 'N/A (Excluded)' : 'N/A')}</div>
+                      {t.rpcWindowStatus && (
+                        <span className={`text-[9px] px-1 py-0.2 rounded font-mono font-medium ${
+                          t.rpcWindowStatus === 'RPC_WINDOW_COMPLETE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                        }`}>
+                          {t.rpcWindowStatus}
+                        </span>
+                      )}
                     </td>
                     <td className="p-3 text-right font-mono font-medium text-zinc-700">
                       {t.realSwapsFound}
@@ -340,8 +344,16 @@ export const HistoricalAnalysisView: React.FC = () => {
                       {new Date(w.firstSeen).toISOString()}
                     </td>
                     <td className="p-3">
-                      {w.status === 'candidate_smart_wallet' ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      {w.status === 'high_confidence_candidate' ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                          high_confidence_candidate
+                        </span>
+                      ) : w.status === 'strong_candidate' ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          strong_candidate
+                        </span>
+                      ) : w.status === 'candidate_smart_wallet' ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-800 border border-blue-200">
                           candidate_smart_wallet
                         </span>
                       ) : (

@@ -75,7 +75,8 @@ export class RobinhoodRpcClient {
             id: Math.floor(Math.random() * 100000),
             method,
             params
-          })
+          }),
+          signal: AbortSignal.timeout(6000)
         });
 
         if (!response.ok) {
