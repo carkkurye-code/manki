@@ -1,0 +1,7 @@
+{
+  "name": "MEXC Smart Wallet Tracker",
+  "description": "On-chain intelligence and statistical analysis tracker identifying repeat pre-listing smart wallets before MEXC token listings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
