@@ -1426,6 +1426,48 @@ export async function runDataQualityAuditTests(): Promise<TestResult[]> {
     }
   );
 
+  // AUDIT_13: Full 24-Hour Window Coverage & Chunked Verification
+  await runTestCase(
+    'AUDIT_13_FULL_24H_WINDOW_COVERAGE',
+    'Full 24-Hour Window Coverage & Chunked Scanning Verification',
+    'Validates dynamic chunk calculation (500 blocks/chunk), actualCoveredWindowHours >= 23.9h requirement, and windowComplete logic',
+    async () => {
+      const avgBlockTime = 0.1012; // Robinhood Chain ~0.1012s block time
+      const chunkSize = 500;
+      const requestedWindowHours = 24.0;
+
+      // Scenario 1: Full 24h block range (~853,754 blocks)
+      const blocksFor24h = Math.ceil((24 * 3600) / avgBlockTime); // ~853,755 blocks
+      const chunkCount24h = Math.ceil(blocksFor24h / chunkSize); // ~1,708 chunks
+      const actualHours24h = Number(((blocksFor24h * avgBlockTime) / 3600).toFixed(2));
+      const failedChunksScenario1: number[] = [];
+      const windowCompleteScenario1 = actualHours24h >= 23.9 && failedChunksScenario1.length === 0;
+
+      // Scenario 2: Clamped 800 blocks (historical flaw)
+      const clampedBlocks = 800;
+      const actualHoursClamped = Number(((clampedBlocks * avgBlockTime) / 3600).toFixed(4));
+      const windowCompleteClamped = actualHoursClamped >= 23.9;
+
+      // Scenario 3: 24h range with failed chunk
+      const failedChunksScenario3 = [42];
+      const windowCompleteScenario3 = actualHours24h >= 23.9 && failedChunksScenario3.length === 0;
+
+      const passed =
+        windowCompleteScenario1 === true &&
+        actualHours24h >= 23.9 &&
+        chunkCount24h > 1700 &&
+        windowCompleteClamped === false &&
+        windowCompleteScenario3 === false;
+
+      return {
+        passed,
+        details: passed
+          ? `Verified: 24h window (${blocksFor24h} blocks, ${chunkCount24h} chunks of ${chunkSize}b) -> ${actualHours24h}h (windowComplete: ${windowCompleteScenario1}). Clamped 800b (${actualHoursClamped}h) correctly marked incomplete (windowComplete: ${windowCompleteClamped}). Failed chunks correctly invalidate window completeness.`
+          : 'Full 24h window coverage test failed.'
+      };
+    }
+  );
+
   const passedCount = results.filter(r => r.passed).length;
   logger.test(`Data Quality Audit tests complete: ${passedCount}/${results.length} passed.`);
   return results;

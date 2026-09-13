@@ -151,11 +151,21 @@ export interface HistoricalTokenReport {
   requestedWindowHours?: number;
   actualCoveredWindowHours?: number;
   rpcWindowStatus?: 'RPC_WINDOW_COMPLETE' | 'RPC_WINDOW_INCOMPLETE';
+  windowStart?: string;
+  windowEnd?: string;
+  startBlock?: number;
+  endBlock?: number;
+  startTimestamp?: number;
+  endTimestamp?: number;
+  chunkCount?: number;
+  failedChunks?: number[];
+  windowComplete?: boolean;
   realSwapsFound: number;
   realBuysFound: number;
   realSellsFound: number;
   realUnknownsFound: number;
   uniqueWalletsFound: number;
+  rpcNote?: string;
 }
 
 export type WalletCandidateTier =
@@ -196,12 +206,19 @@ export interface HistoricalAnalysisSummary {
   tokensScanned: number;
   completeRpcWindows: number;
   incompleteRpcWindows: number;
+  complete24hWindows?: number;
+  incomplete24hWindows?: number;
   preListingWindow: '24h';
   realSwapTransactions: number;
   realBuys: number;
   realSells: number;
   realUnknowns: number;
   uniqueWallets: number;
+  uniqueEoaWallets?: number;
+  wallets1Token?: number;
+  wallets2Tokens?: number;
+  wallets3PlusTokens?: number;
+  wallets5PlusTokens?: number;
   walletsWith2PlusMexcSamples: number;
   walletsWith3PlusMexcSamples: number;
   walletsWith5PlusMexcSamples: number;
