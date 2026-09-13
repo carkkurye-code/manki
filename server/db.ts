@@ -325,6 +325,19 @@ export const dbHelpers = {
   },
 
   // Global aggregate stats
+  clearHistoricalTradesAndWallets(): void {
+    try {
+      db.exec(`
+        DELETE FROM dex_trades;
+        DELETE FROM wallet_token_activity;
+        DELETE FROM wallet_stats;
+      `);
+      logger.system('Cleared old historical trades and wallet stats from SQLite database.');
+    } catch (err: any) {
+      logger.system(`Error clearing historical database: ${err.message}`, 'warn');
+    }
+  },
+
   getDashboardStats() {
     const listingRow: any = db.prepare('SELECT COUNT(*) as count FROM mexc_listings').get();
     const walletRow: any = db.prepare('SELECT COUNT(*) as count FROM wallet_stats').get();

@@ -191,4 +191,10 @@ export interface HistoricalAnalysisSummary {
   dexScreenerCoverage?: string;
   rpcScanStatus?: string;
   windowAuditNote?: string;
+  rawTransferEvents?: number;
+  uniqueTransactionHashes?: number;
+  rpcTxSuccess?: number;
+  rpcTxFailed?: number;
+  rpcTxSkipped?: number;
+  failedTransactions?: Array<{ txHash: string; error: string; retries: number; excluded: boolean }>;
 }

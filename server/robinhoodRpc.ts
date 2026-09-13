@@ -2,7 +2,11 @@ import { logger } from './logger.js';
 import { dbHelpers } from './db.js';
 import { DexTrade } from './types.js';
 
-export const ROBINHOOD_RPC_URL = 'https://rpc.mainnet.chain.robinhood.com';
+export const ROBINHOOD_RPC_URLS = [
+  'https://rpc.mainnet.chain.robinhood.com',
+  'https://robinhood-rpc.publicnode.com'
+];
+export const ROBINHOOD_RPC_URL = ROBINHOOD_RPC_URLS[0];
 export const ROBINHOOD_CHAIN_ID = 4663;
 
 // Known contract addresses on Robinhood chain to exclude from being classified as wallet addresses
@@ -49,22 +53,32 @@ export interface RpcMvpResult {
 }
 
 export class RobinhoodRpcClient {
-  private rpcUrl: string;
+  private rpcUrls: string[];
+  private currentRpcIndex = 0;
 
-  constructor(rpcUrl: string = ROBINHOOD_RPC_URL) {
-    this.rpcUrl = rpcUrl;
+  constructor(rpcUrls: string[] = ROBINHOOD_RPC_URLS) {
+    this.rpcUrls = [...rpcUrls];
+  }
+
+  get rpcUrl(): string {
+    return this.rpcUrls[this.currentRpcIndex % this.rpcUrls.length];
+  }
+
+  private rotateRpc() {
+    this.currentRpcIndex = (this.currentRpcIndex + 1) % this.rpcUrls.length;
   }
 
   /**
-   * Robust JSON-RPC caller with automatic retry and exponential backoff
+   * Robust JSON-RPC caller with automatic retry, exponential backoff, and RPC rotation
    */
-  async callRpc<T = any>(method: string, params: any[] = [], retries = 3): Promise<T> {
+  async callRpc<T = any>(method: string, params: any[] = [], retries = 4): Promise<T> {
     let lastError: any = null;
-    let delayMs = 300;
+    let delayMs = 400;
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        const response = await fetch(this.rpcUrl, {
+        const url = this.rpcUrl;
+        const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -76,8 +90,13 @@ export class RobinhoodRpcClient {
             method,
             params
           }),
-          signal: AbortSignal.timeout(6000)
+          signal: AbortSignal.timeout(8000)
         });
+
+        if (response.status === 429) {
+          this.rotateRpc();
+          throw new Error(`HTTP 429: Too Many Requests on ${url}`);
+        }
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -92,7 +111,9 @@ export class RobinhoodRpcClient {
       } catch (err: any) {
         lastError = err;
         if (attempt < retries) {
-          await new Promise(r => setTimeout(r, delayMs));
+          const is429 = err.message?.includes('429');
+          const waitTime = is429 ? Math.max(1200, delayMs * 2) : delayMs;
+          await new Promise(r => setTimeout(r, waitTime));
           delayMs *= 2;
         }
       }
@@ -130,6 +151,100 @@ export class RobinhoodRpcClient {
    */
   async eth_getTransactionByHash(txHash: string): Promise<any> {
     return this.callRpc('eth_getTransactionByHash', [txHash]);
+  }
+
+  /**
+   * Batch get transaction details by hashes with automatic retry
+   */
+  async eth_getTransactionsByHashBatch(
+    txHashes: string[],
+    batchSize = 25,
+    maxConcurrency = 2
+  ): Promise<Map<string, { tx: any; error?: string }>> {
+    const resultMap = new Map<string, { tx: any; error?: string }>();
+    if (!txHashes || txHashes.length === 0) return resultMap;
+
+    const batches: string[][] = [];
+    for (let i = 0; i < txHashes.length; i += batchSize) {
+      batches.push(txHashes.slice(i, i + batchSize));
+    }
+
+    for (let i = 0; i < batches.length; i += maxConcurrency) {
+      const currentBatches = batches.slice(i, i + maxConcurrency);
+      await Promise.all(
+        currentBatches.map(async (batch) => {
+          let retries = 4;
+          let delayMs = 300;
+          let success = false;
+
+          while (retries > 0 && !success) {
+            const currentUrl = this.rpcUrl;
+            try {
+              const body = batch.map((hash, idx) => ({
+                jsonrpc: '2.0',
+                id: idx + 1,
+                method: 'eth_getTransactionByHash',
+                params: [hash]
+              }));
+
+              const response = await fetch(currentUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'User-Agent': 'Robinhood-Onchain-Reader/1.0'
+                },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(10000)
+              });
+
+              if (response.status === 429) {
+                this.rotateRpc();
+                throw new Error(`HTTP 429: Too Many Requests on ${currentUrl}`);
+              }
+
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+              }
+
+              const data = await response.json();
+              if (Array.isArray(data)) {
+                batch.forEach((hash, idx) => {
+                  const item = data.find((d: any) => d.id === idx + 1) || data[idx];
+                  if (item && item.result) {
+                    resultMap.set(hash.toLowerCase(), { tx: item.result });
+                  } else if (item && item.error) {
+                    resultMap.set(hash.toLowerCase(), { tx: null, error: item.error.message });
+                  } else {
+                    resultMap.set(hash.toLowerCase(), { tx: null, error: 'Transaction not found or null' });
+                  }
+                });
+                success = true;
+              } else {
+                throw new Error('RPC did not return array for batch request');
+              }
+            } catch (err: any) {
+              retries--;
+              if (retries > 0) {
+                const is429 = err.message?.includes('429');
+                const waitTime = is429 ? Math.max(1500, delayMs * 2) : delayMs;
+                await new Promise(r => setTimeout(r, waitTime));
+                delayMs *= 2;
+              } else {
+                batch.forEach((hash) => {
+                  if (!resultMap.has(hash.toLowerCase())) {
+                    resultMap.set(hash.toLowerCase(), { tx: null, error: err.message });
+                  }
+                });
+              }
+            }
+          }
+        })
+      );
+      // Small pacing delay to respect RPC rate limits
+      await new Promise(r => setTimeout(r, 60));
+    }
+
+    return resultMap;
   }
 
   /**
